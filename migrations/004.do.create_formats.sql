@@ -1,0 +1,3 @@
+ALTER TABLE logs
+  ADD COLUMN format_min INTEGER,
+  ADD COLUMN format_sec INTEGER;
