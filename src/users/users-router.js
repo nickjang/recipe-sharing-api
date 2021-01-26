@@ -3,12 +3,13 @@ const path = require('path');
 const { requireAuth } = require('../middleware/jwt-auth');
 const UsersService = require('./users-service');
 const AuthService = require('../auth/auth-service');
+const logger = require('../logger');
 
 const usersRouter = express.Router();
 const jsonBodyParser = express.json();
 
 usersRouter
-  .post('/', jsonBodyParser, (req, res, next) => {
+  .post('/', jsonBodyParser, async (req, res, next) => {
     const { password, email, full_name, nickname } = req.body;
 
     for (const field of ['full_name', 'email', 'password'])
@@ -22,47 +23,46 @@ usersRouter
     if (passwordError)
       return res.status(400).json({ error: passwordError });
 
-    UsersService.hasUserWithemail(
-      req.app.get('db'),
-      email
-    )
-      .then(hasUserWithemail => {
-        if (hasUserWithemail)
-          return res.status(400).json({ error: 'email already taken' });
+    try {
+      const hasUser = await UsersService.hasUserWithEmail(
+        req.app.get('db'),
+        email
+      );
+      if (hasUser)
+        return res.status(400).json({ error: 'Email already taken' });
 
-        return UsersService.hashPassword(password)
-          .then(hashedPassword => {
-            const newUser = {
-              email,
-              password: hashedPassword,
-              full_name,
-              nickname,
-              date_created: 'now()',
-            };
+      const hashedPassword = await UsersService.hashPassword(password);
 
-            return UsersService.insertUser(
-              req.app.get('db'),
-              newUser
-            )
-              .then(user => {
-                res
-                  .status(201)
-                  .location(path.posix.join(req.originalUrl, `/${user.id}`))
-                  .json(UsersService.serializeUser(user));
-              });
-          });
-      })
-      .catch(next);
+      const newUser = {
+        email,
+        password: hashedPassword,
+        full_name,
+        nickname,
+        date_created: 'now()',
+      };
+
+      const user = await UsersService.insertUser(
+        req.app.get('db'),
+        newUser
+      );
+
+      return res
+        .status(201)
+        .location(path.posix.join(req.originalUrl, `/${user.id}`))
+        .json(UsersService.serializeUser(user));
+    } catch (error) { next(error); }
   })
 
 usersRouter
   .route('/')
   .all(requireAuth)
   .patch(jsonBodyParser, async (req, res, next) => {
-    if (req.user.id === 1)
+    if (req.user.id === 1) {
+      logger.error('Cannot update demo account');
       return res.status(401).json({
         error: 'Cannot update demo account'
       });
+    }
 
     const { password, email } = req.body;
     let updates = { date_modified: 'now()' };
@@ -73,7 +73,7 @@ usersRouter
       });
 
     if (email) {
-      const hasUserWithEmail = await UsersService.hasUserWithemail(
+      const hasUserWithEmail = await UsersService.hasUserWithEmail(
         req.app.get('db'),
         email
       );
@@ -84,49 +84,49 @@ usersRouter
         updates['email'] = email;
     }
 
-    if (password) {
-      const passwordError = UsersService.validatePassword(password);
+    try {
+      if (password) {
+        const passwordError = UsersService.validatePassword(password);
 
-      if (passwordError)
-        return res.status(400).json({ error: passwordError });
+        if (passwordError)
+          return res.status(400).json({ error: passwordError });
 
-      const hashedPassword = await UsersService.hashPassword(password);
-      updates['password'] = hashedPassword;
-    }
+        const hashedPassword = await UsersService.hashPassword(password);
+        updates['password'] = hashedPassword;
+      }
 
-    return UsersService.updateUser(
-      req.app.get('db'),
-      req.user.id,
-      updates
-    )
-      .then(user => {
-        const sub = user.email;
-        const payload = { user_id: user.id };
-        res
-          .location(path.posix.join(req.originalUrl, `/${user.id}`))
-          .json({
-            user: UsersService.serializeUser(user),
-            authToken: AuthService.createJwt(sub, payload)
-          });
-      })
-      .catch(next);
+      const user = await UsersService.updateUser(
+        req.app.get('db'),
+        req.user.id,
+        updates
+      );
+      const sub = user.email;
+      const payload = { user_id: user.id };
+      res
+        .location(path.posix.join(req.originalUrl, `/${user.id}`))
+        .json({
+          user: UsersService.serializeUser(user),
+          authToken: AuthService.createJwt(sub, payload)
+        });
+    } catch (error) { next(error); }
   })
   .delete((req, res, next) => {
-    if (req.user.id === 1)
+    if (req.user.id === 1) {
+      logger.error('Cannot delete demo account');
       return res.status(401).json({
         error: 'Cannot delete demo account'
       });
+    }
 
-    return UsersService.deleteUser(
-      req.app.get('db'),
-      req.user.id
-    )
-      .then(() => {
-        res
-          .status(204)
-          .send();
-      })
-      .catch(next);
+    try {
+      await UsersService.deleteUser(
+        req.app.get('db'),
+        req.user.id
+      );
+      return res
+        .status(204)
+        .send();
+    } catch (error) { next(error); }
   });
 
 module.exports = usersRouter;

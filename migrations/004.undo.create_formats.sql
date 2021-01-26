@@ -1,3 +1,0 @@
-ALTER TABLE logs
-  DROP COLUMN IF EXISTS format_min,
-  DROP COLUMN IF EXISTS format_sec;

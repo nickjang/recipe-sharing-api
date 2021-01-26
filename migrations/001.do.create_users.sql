@@ -7,8 +7,3 @@ CREATE TABLE users (
   date_created TIMESTAMP DEFAULT now() NOT NULL,
   date_modified TIMESTAMP
 );
-
-ALTER TABLE projects
-  ADD COLUMN
-    owner_id INTEGER REFERENCES users(id)
-    ON DELETE SET NULL;

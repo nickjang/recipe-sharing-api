@@ -1,4 +1,5 @@
 const AuthService = require('../auth/auth-service');
+const logger = require('../logger');
 
 function requireAuth(req, res, next) {
   const authToken = req.get('Authorization') || '';
@@ -18,8 +19,10 @@ function requireAuth(req, res, next) {
       payload.sub
     )
       .then(user => {
-        if (!user)
+        if (!user) {
+          logger.error(`Unauthorized request to path: ${req.path}`);
           return res.status(401).json({ error: 'Unauthorized request' });
+        }
 
         req.user = user;
         next();
@@ -29,6 +32,7 @@ function requireAuth(req, res, next) {
         next(err);
       });
   } catch(error) {
+    logger.error(`Unauthorized request to path: ${req.path}`);
     res.status(401).json({ error: 'Unauthorized request' });
   }
 }
