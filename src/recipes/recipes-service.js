@@ -205,12 +205,23 @@ const RecipesService = {
       .del()
       .then(() => this.insertInstructions(updatedInstructions));
   },
+  deleteRecipe(db, id) {
+    return db
+      .from('recipes')
+      .where({ id })
+      .del();
+  },
   serializeRecipe(recipe) {
     const { author } = recipe;
     return {
       id: recipe.id,
       name: xss(recipe.recipe_name),
-      ingr
+      information: xss(recipe.information),
+      ingredients: recipe.ingredients.map(ingredient => ({
+        measurement: xss(ingredient.measurement),
+        ingredient: xss(ingredient.ingredient)
+      })),
+      instructions: recipe.instructions.map(instruction => xss(instruction)),
       date_created: new Date(recipe.date_created),
       date_modified: recipe.date_modified ? new Date(recipe.date_modified) : null,
       author: {
