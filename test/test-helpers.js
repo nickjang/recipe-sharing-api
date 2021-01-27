@@ -38,193 +38,256 @@ function makeUsersArray() {
   ]
 }
 
-function makeProjectsArray(users) {
+function makeRecipesArray(users) {
   return [
     {
       id: 1,
-      title: 'First test post!',
-      owner_id: users[0].id,
+      recipe_name: 'First test',
+      information: 'First test information',
+      img: 'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=3900&q=80',
+      user_id: users[0].id,
       date_created: new Date('2029-01-22T16:28:32.615Z'),
     },
     {
       id: 2,
-      title: 'Second test post!',
-      owner_id: users[1].id,
+      recipe_name: 'Second test',
+      information: 'Second test information',
+      img: 'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=3900&q=80',
+      user_id: users[1].id,
       date_created: new Date('2029-01-22T16:28:32.615Z'),
     },
     {
       id: 3,
-      title: 'Third test post!',
-      owner_id: users[2].id,
+      recipe_name: 'Third test',
+      information: 'Third test information',
+      img: 'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=3900&q=80',
+      user_id: users[2].id,
       date_created: new Date('2029-01-22T16:28:32.615Z'),
     },
     {
       id: 4,
-      title: 'Fourth test post!',
-      owner_id: users[3].id,
+      recipe_name: 'Fourth test',
+      information: 'Fourth test information',
+      img: 'https://images.unsplash.com/photo-1504754524776-8f4f37790ca0?ixid=MXwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHw%3D&ixlib=rb-1.2.1&auto=format&fit=crop&w=3900&q=80',
+      user_id: users[3].id,
       date_created: new Date('2029-01-22T16:28:32.615Z'),
-    },
-  ]
-}
-
-function makeLogsArray(users, projects) {
-  return [
-    {
-      id: 1,
-      project_id: projects[0].id,
-      user_id: users[0].id,
-      start_time: new Date('2029-01-22T16:28:32.615Z'),
-      end_time: new Date('2029-01-22T17:28:32.615Z'),
-      format_min: null,
-      format_sec: null
-    },
-    {
-      id: 2,
-      project_id: projects[0].id,
-      user_id: users[0].id,
-      start_time: new Date('2029-01-22T16:28:32.615Z'),
-      end_time: new Date('2029-01-22T17:28:32.615Z'),
-      format_min: 1,
-      format_sec: 1
-    },
-    {
-      id: 3,
-      project_id: projects[0].id,
-      user_id: users[0].id,
-      start_time: new Date('2029-01-22T16:28:32.615Z'),
-      end_time: new Date('2029-01-22T17:28:32.615Z'),
-      format_min: 1,
-      format_sec: 0
-    },
-    {
-      id: 4,
-      project_id: projects[0].id,
-      user_id: users[0].id,
-      start_time: new Date('2029-01-22T16:28:32.615Z'),
-      end_time: new Date('2029-01-22T17:28:32.615Z'),
-      format_min: 0,
-      format_sec: 0
-    },
-    {
-      id: 5,
-      project_id: projects[projects.length - 1].id,
-      user_id: users[3].id,
-      start_time: new Date('2029-01-22T16:28:32.615Z'),
-      end_time: new Date('2029-01-22T17:28:32.615Z'),
-      format_min: 10,
-      format_sec: 0
-    },
-    {
-      id: 6,
-      project_id: projects[projects.length - 1].id,
-      user_id: users[3].id,
-      start_time: new Date('2029-01-22T16:28:32.615Z'),
-      end_time: new Date('2029-01-22T17:28:32.615Z'),
-      format_min: 5,
-      format_sec: 5
-    },
-    {
-      id: 7,
-      project_id: projects[3].id,
-      user_id: users[3].id,
-      start_time: new Date('2029-01-22T16:28:32.615Z'),
-      end_time: new Date('2029-01-22T17:28:32.615Z'),
-      format_min: 45,
-      format_sec: 45
     },
   ];
 }
 
-function makeExpectedProject(users, project) {
-  const owner = users
-    .find(user => user.id === project.owner_id)
-
-  return {
-    id: project.id,
-    title: project.title,
-    date_created: project.date_created.toISOString(),
-    owner: {
-      id: owner.id,
-      email: owner.email,
-      full_name: owner.full_name,
-      nickname: owner.nickname,
-      date_created: owner.date_created.toISOString(),
-      date_modified: owner.date_modified || null,
+function makeIngredientsArray(recipes) {
+  return [
+    {
+      recipe_id: recipes[0].id,
+      list_idx: 0,
+      measurement: '1 cup',
+      ingredient: 'sugar',
     },
-  }
-}
-
-function makeExpectedProjectLogs(users, project_id, logs) {
-  const expectedLogs = logs
-    .filter(log => log.project_id === project_id)
-
-  return expectedLogs.map(log => {
-    const logUser = users.find(user => user.id === log.user_id)
-    return {
-      id: log.id,
-      project_id: log.project_id,
-      start_time: log.start_time.toISOString(),
-      end_time: log.end_time.toISOString(),
-      format: {
-        minutes: log.format_min,
-        seconds: log.format_sec
-      },
-      user: {
-        id: logUser.id,
-        email: logUser.email,
-        full_name: logUser.full_name,
-        nickname: logUser.nickname,
-        date_created: logUser.date_created.toISOString(),
-        date_modified: logUser.date_modified || null,
-      }
+    {
+      recipe_id: recipes[0].id,
+      list_idx: 1,
+      measurement: '2 cups',
+      ingredient: 'salt',
+    },
+    {
+      recipe_id: recipes[1].id,
+      list_idx: 0,
+      measurement: '1 tsp',
+      ingredient: 'baking powder',
+    },
+    {
+      recipe_id: recipes[1].id,
+      list_idx: 1,
+      measurement: '1 cup',
+      ingredient: 'flour',
+    },
+    {
+      recipe_id: recipes[1].id,
+      list_idx: 2,
+      measurement: '1/2 cup',
+      ingredient: 'sugar',
+    },
+    {
+      recipe_id: recipes[2].id,
+      list_idx: 0,
+      measurement: '1 cup',
+      ingredient: 'flour',
+    },
+    {
+      recipe_id: recipes[3].id,
+      list_idx: 0,
+      measurement: '1 cup',
+      ingredient: 'salt',
     }
-  })
+  ];
 }
 
-function makeMaliciousProject(user) {
-  const maliciousProject = {
-    id: 911,
-    date_created: new Date(),
-    title: 'Naughty naughty very naughty <script>alert("xss");</script>',
-    owner_id: user.id,
-  }
-  const expectedProject = {
-    ...makeExpectedProject([user], maliciousProject),
-    title: 'Naughty naughty very naughty &lt;script&gt;alert(\"xss\");&lt;/script&gt;',
-  }
+function makeInstructionsArray(recipes) {
+  return [
+    {
+      recipe_id: recipes[0].id,
+      list_idx: 0,
+      instruction: 'add',
+    },
+    {
+      recipe_id: recipes[0].id,
+      list_idx: 1,
+      instruction: 'mix',
+    },
+    {
+      recipe_id: recipes[0].id,
+      list_idx: 2,
+      instruction: 'bake',
+    },
+    {
+      recipe_id: recipes[1].id,
+      list_idx: 0,
+      instruction: 'cook',
+    },
+    {
+      recipe_id: recipes[1].id,
+      list_idx: 1,
+      instruction: 'add',
+    },
+    {
+      recipe_id: recipes[2].id,
+      list_idx: 0,
+      instruction: 'cook',
+    },
+    {
+      recipe_id: recipes[3].id,
+      list_idx: 0,
+      instruction: 'mix',
+    }
+  ];
+}
+
+function makeExpectedRecipe(users, ingredients, instructions, recipe) {
+  const author = users.find(user => user.id === recipe.user_id);
+  const recipeIngredients = ingredients.filter(ingredient => ingredient.recipe_id === recipe.id);
+  const recipeInstructions = instructions.filter(instruction => instruction.recipe_id === recipe.id);
+
   return {
-    maliciousProject,
-    expectedProject,
-  }
+    id: recipe.id,
+    name: recipe.recipe_name,
+    information: recipe.information,
+    img: recipe.img,
+    ingredients: recipeIngredients.map(({ measurement, ingredient }) => ({
+      measurement,
+      ingredient
+    })),
+    instructions: recipeInstructions.map(({ instruction }) => instruction),
+    author: {
+      id: author.id,
+      full_name: author.full_name,
+    },
+    date_created: recipe.date_created.toISOString(),
+    date_modified: recipe.date_modified ? recipe.date_modified.toISOString() : null
+  };
 }
 
-function makeProjectsFixtures() {
-  const testUsers = makeUsersArray()
-  const testProjects = makeProjectsArray(testUsers)
-  const testLogs = makeLogsArray(testUsers, testProjects)
-  return { testUsers, testProjects, testLogs }
+function makeExpectedUserRecipes(users, ingredients, instructions, recipes, limit, offset, user_id) {
+  const author = users.find(user => user.id === user_id);
+  const userRecipes = [];
+
+  recipes.forEach((recipe, index) => {
+    if (index < offset || index >= (limit + offset)) return;
+
+    const recipeIngredients = ingredients.filter(ingredient => ingredient.recipe_id === recipe.id);
+    const recipeInstructions = instructions.filter(instruction => instruction.recipe_id === recipe.id);
+
+    userRecipes.push({
+      id: recipe.id,
+      name: recipe.recipe_name,
+      information: recipe.information,
+      img: recipe.img,
+      ingredients: recipeIngredients.map(({ measurement, ingredient }) => ({
+        measurement,
+        ingredient
+      })),
+      instructions: recipeInstructions.map(({ instruction }) => instruction),
+      author: {
+        id: author.id,
+        full_name: author.full_name
+      },
+      date_created: recipe.date_created.toISOString(),
+      date_modified: recipe.date_modified ? recipe.date_modified.toISOString() : null
+    });
+  });
+  return userRecipes;
+}
+
+const makeMaliciousRecipe = (user) => {
+  const maliciousRecipe = {
+    id: 1,
+    recipe_name: '<script>alert("xss");</script>',
+    information: '<script>alert("xss");</script>',
+    img: '<script>alert("xss");</script>',
+    date_created: new Date(),
+    user_id: user.id
+  };
+  const maliciousIngredients = [{
+    recipe_id: 1,
+    list_idx: 0,
+    measurement: '<script>alert("xss");</script>',
+    ingredient: '<script>alert("xss");</script>',
+  }];
+  const maliciousInstructions = [{
+    recipe_id: 1,
+    list_idx: 0,
+    instruction: '<script>alert("xss");</script>',
+  }];
+  const expectedRecipe = {
+    ...makeExpectedRecipe(
+      [user],
+      maliciousIngredients,
+      maliciousInstructions,
+      maliciousRecipe
+    ),
+    name: '&lt;script&gt;alert(\"xss\");&lt;/script&gt;',
+    information: '&lt;script&gt;alert(\"xss\");&lt;/script&gt;',
+    img: '&lt;script&gt;alert(\"xss\");&lt;/script&gt;',
+    ingredients: [{
+      measurement: '&lt;script&gt;alert(\"xss\");&lt;/script&gt;',
+      ingredient: '&lt;script&gt;alert(\"xss\");&lt;/script&gt;',
+    }],
+    instructions: ['&lt;script&gt;alert(\"xss\");&lt;/script&gt;']
+  };
+  return {
+    maliciousRecipe,
+    maliciousIngredients,
+    maliciousInstructions,
+    expectedRecipe,
+  };
+}
+
+function makeRecipesFixtures() {
+  const testUsers = makeUsersArray();
+  const testRecipes = makeRecipesArray(testUsers);
+  const testIngredients = makeIngredientsArray(testRecipes);
+  const testInstructions = makeInstructionsArray(testRecipes);
+  return { testUsers, testRecipes, testIngredients, testInstructions };
 }
 
 function cleanTables(db) {
   return db.transaction(trx =>
     trx.raw(
       `TRUNCATE
-        projects,
+        recipes,
         users,
-        logs
+        recipe_ingredients,
+        recipe_instructions
       `
     )
       .then(() =>
         Promise.all([
-          trx.raw(`ALTER SEQUENCE projects_id_seq minvalue 0 START WITH 1`),
+          trx.raw(`ALTER SEQUENCE recipes_id_seq minvalue 0 START WITH 1`),
           trx.raw(`ALTER SEQUENCE users_id_seq minvalue 0 START WITH 1`),
-          trx.raw(`ALTER SEQUENCE logs_id_seq minvalue 0 START WITH 1`),
-          trx.raw(`SELECT setval('projects_id_seq', 0)`),
+          trx.raw(`SELECT setval('recipes_id_seq', 0)`),
           trx.raw(`SELECT setval('users_id_seq', 0)`),
-          trx.raw(`SELECT setval('logs_id_seq', 0)`),
         ])
       )
-  )
+  );
 }
 
 function seedUsers(db, users) {
@@ -242,34 +305,38 @@ function seedUsers(db, users) {
     )
 }
 
-function seedProjectsTables(db, users, projects, logs = []) {
+function seedRecipesTables(db, users, recipes, ingredients = [], instructions = []) {
   // use a transaction to group the queries and auto rollback on any failure
   return db.transaction(async trx => {
     await seedUsers(trx, users)
-    await trx.into('projects').insert(projects)
+    await trx.into('recipes').insert(recipes)
     // update the auto sequence to match the forced id values
     await trx.raw(
-      `SELECT setval('projects_id_seq', ?)`,
-      [projects[projects.length - 1].id],
+      `SELECT setval('recipes_id_seq', ?)`,
+      [recipes[recipes.length - 1].id],
     )
-    // only insert logs if there are some, also update the sequence counter
-    if (logs.length) {
-      await trx.into('logs').insert(logs)
-      await trx.raw(
-        `SELECT setval('logs_id_seq', ?)`,
-        [logs[logs.length - 1].id],
-      )
+    // insert ingredients and instructions if there are some, 
+    if (ingredients.length) {
+      await trx.into('recipe_ingredients').insert(ingredients)
+    }
+    if (instructions.length) {
+      await trx.into('recipe_instructions').insert(instructions)
     }
   })
 }
 
-function seedMaliciousProject(db, user, project) {
-  return seedUsers(db, [user])
-    .then(() =>
-      db
-        .into('projects')
-        .insert([project])
-    )
+function seedMaliciousRecipe(db, user, recipe, ingredients = [], instructions = []) {
+  return db.transaction(async trx => {
+    await seedUsers(trx, [user])
+    await trx.into('recipes').insert(recipe)
+    // insert ingredients and instructions if there are some, 
+    if (ingredients.length) {
+      await trx.into('recipe_ingredients').insert(ingredients)
+    }
+    if (instructions.length) {
+      await trx.into('recipe_instructions').insert(instructions)
+    }
+  });
 }
 
 function makeAuthHeader(user, secret = process.env.JWT_SECRET) {
@@ -282,16 +349,16 @@ function makeAuthHeader(user, secret = process.env.JWT_SECRET) {
 
 module.exports = {
   makeUsersArray,
-  makeProjectsArray,
-  makeExpectedProject,
-  makeExpectedProjectLogs,
-  makeMaliciousProject,
-  makeLogsArray,
-
-  makeProjectsFixtures,
+  makeRecipesArray,
+  makeIngredientsArray,
+  makeInstructionsArray,
+  makeExpectedRecipe,
+  makeExpectedUserRecipes,
+  makeMaliciousRecipe,
+  makeRecipesFixtures,
   cleanTables,
-  seedProjectsTables,
-  seedMaliciousProject,
-  makeAuthHeader,
   seedUsers,
+  seedRecipesTables,
+  seedMaliciousRecipe,
+  makeAuthHeader,
 }

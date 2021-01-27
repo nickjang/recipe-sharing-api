@@ -7,8 +7,8 @@ const { expect } = require('chai');
 describe('Users Endpoints', function () {
   let db;
 
-  const { testUsers } = helpers.makeProjectsFixtures();
-  const testUser = testUsers[0];
+  const { testUsers } = helpers.makeRecipesFixtures();
+  const testUser = testUsers[1];
 
   before('make knex instance', () => {
     db = knex({
@@ -23,6 +23,24 @@ describe('Users Endpoints', function () {
   before('cleanup', () => helpers.cleanTables(db));
 
   afterEach('cleanup', () => helpers.cleanTables(db));
+
+  describe('GET /api/users/:user_id', () => {
+    context('Given there are users in the database', () => {
+      beforeEach('insert users', () =>
+        helpers.seedUsers(
+          db,
+          testUsers
+        )
+      );
+
+      it('responds with 200 and the user\'s full name', () => {
+        const expectedName = testUsers[1].full_name;
+        return supertest(app)
+          .get('/api/users/2')
+          .expect(200, { full_name: expectedName });
+      });
+    });
+  });
 
   describe('POST /api/users', () => {
     context('User Validation', () => {
@@ -124,7 +142,7 @@ describe('Users Endpoints', function () {
         return supertest(app)
           .post('/api/users')
           .send(duplicateUser)
-          .expect(400, { error: 'email already taken' });
+          .expect(400, { error: 'Email already taken' });
       });
     });
 
@@ -194,10 +212,10 @@ describe('Users Endpoints', function () {
           .send(updates)
           .expect(200)
           .expect(res => {
-            expect(res.body).to.have.property('id');
-            expect(res.body.email).to.eql(updates.email);
-            expect(res.body).to.not.have.property('password');
-            expect(res.headers.location).to.eql(`/api/users/${res.body.id}`);
+            expect(res.body.user).to.have.property('id');
+            expect(res.body.user.email).to.eql(updates.email);
+            expect(res.body.user).to.not.have.property('password');
+            expect(res.headers.location).to.eql(`/api/users/${res.body.user.id}`);
           })
           .expect(res =>
             db
@@ -227,7 +245,7 @@ describe('Users Endpoints', function () {
         )
       );
 
-      it('responds 200 and deletes user', () => {
+      it('responds 204 and deletes user', () => {
         return supertest(app)
           .delete('/api/users')
           .set('Authorization', helpers.makeAuthHeader(testUser))

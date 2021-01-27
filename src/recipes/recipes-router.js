@@ -3,6 +3,7 @@ const path = require('path');
 const UsersService = require('../users/users-service');
 const RecipesService = require('./recipes-service');
 const { requireAuth } = require('../middleware/jwt-auth');
+const logger = require('../logger');
 
 const recipesRouter = express.Router();
 const jsonBodyParser = express.json();
@@ -10,12 +11,14 @@ const jsonBodyParser = express.json();
 recipesRouter
   .route('/')
   .get(async (req, res, next) => {
-    const { limit, userId } = req.query.part;
+    const { limit, offset, userId } = req.query;
 
-    if (!limit) {
-      return res.status(400).json({
-        error: 'Missing \'limit\' in request query'
-      });
+    for (const key of ['limit', 'offset']) {
+      if (!req.query[key]) {
+        return res.status(400).json({
+          error: `Missing '${key}' in request query`
+        });
+      }
     }
 
     // if given userId, check if user exists
@@ -36,12 +39,21 @@ recipesRouter
     }
 
     try {
-      const recipes = await RecipesService.getRecipes(
-        req.app.get('db'),
-        limit,
-        userId
-      );
-      return res.json(recipes.map(RecipesService.serializeRecipe));
+      const [recipes, count] = await Promise.all([
+        RecipesService.getRecipes(
+          req.app.get('db'),
+          limit,
+          offset,
+          userId
+        ),
+        RecipesService.getNumRecipes(
+          req.app.get('db'),
+          userId
+        )]);
+      return res.json({
+        recipes: recipes.map(RecipesService.serializeRecipe),
+        hasMore: !!(count - (offset + recipes.length))
+      });
     } catch (error) { next(error); }
   })
   .post(requireAuth, jsonBodyParser, async (req, res, next) => {
@@ -83,14 +95,14 @@ recipesRouter
       );
 
       // prepare column values for ingredients and instructions
-      ingredients.array.forEach((ingredient, index) => {
+      ingredients.forEach((ingredient, index) => {
         ingredients[index] = {
           ...ingredient,
           recipe_id,
           list_idx: index
         };
       });
-      instructions.array.forEach((instruction, index) => {
+      instructions.forEach((instruction, index) => {
         instructions[index] = {
           recipe_id,
           list_idx: index,
@@ -129,7 +141,7 @@ recipesRouter
   })
   .all(requireAuth)
   .all(checkUserIsAuthor)
-  .patch(async (req, res, next) => {
+  .patch(jsonBodyParser, async (req, res, next) => {
     if (req.user.id === 1) {
       return res.status(401).json({
         error: 'Cannot update demo recipes'
@@ -139,20 +151,17 @@ recipesRouter
     const updatesToRun = [];
     const { name, information, ingredients, instructions, img } = req.body;
     const recipeUpdates = { recipe_name: name, information, img }; // updates to name, information, and/or img
-    const listUpdates; // updates to ingredients and/or instructions
+    let listUpdates; // updates to ingredients and/or instructions
+    let updated = false;
 
     // if recipe has updates to name, information, and/or image, add to 
     // updates to run
-    const updated = false;
     for (const key of Object.keys(recipeUpdates)) {
-      if (!recipeUpdates[key]) {
+      if (recipeUpdates[key] == null) {
         delete recipeUpdates[key];
+      } else {
         updated = true;
       }
-    }
-    if (updated) {
-      recipeUpdates['date_modified'] = 'now()';
-      updatesToRun.push(RecipesService.updateRecipe(recipeUpdates));
     }
 
     // if given, check if ingredients and instructions have at least 
@@ -160,37 +169,59 @@ recipesRouter
     listUpdates = {
       ingredients: {
         func: RecipesService.putIngredients,
-        ingredients
+        list: ingredients && ingredients.map((ingredient, index) => ({
+          recipe_id: res.recipe.id,
+          list_idx: index,
+          measurement: ingredient.measurement,
+          ingredient: ingredient.ingredient
+        }))
       },
       instructions: {
         func: RecipesService.putInstructions,
-        instructions
+        list: instructions && instructions.map((instruction, index) => ({
+          recipe_id: res.recipe.id,
+          list_idx: index,
+          instruction
+        }))
       }
     };
-    for (const type of listUpdates) {
+    for (const type in listUpdates) {
       const { func, list } = listUpdates[type];
-      if (list) {
-        if (typeof type === 'object') {
-          if (!list.length) {
-            return res.status(400).json({
-              error: `'${type}' cannnot be empty`
-            });
-          } else {
-            updatesToRun.push(func(
-              req.app.get('db'),
-              res.recipe.id,
-              list
-            ));
-          }
+      if (list && typeof list === 'object') {
+        if (!list.length) {
+          return res.status(400).json({
+            error: `'${type}' cannnot be empty`
+          });
+        } else {
+          updated = true;
+          updatesToRun.push(func(
+            req.app.get('db'),
+            res.recipe.id,
+            list
+          ));
         }
       }
     }
 
+    // if there are updates, run updates
+    if (!updated) {
+      return res.status(400).json({
+        error: 'Found no updates in request body'
+      });
+    } else {
+      recipeUpdates.date_modified = 'now()';
+      updatesToRun.push(RecipesService.updateRecipe(
+        req.app.get('db'),
+        res.recipe.id,
+        recipeUpdates
+      ));
+    }
+
     try {
-      await Promise.all(updatesToRun);
+      let result = await Promise.all(updatesToRun);
       const recipe = await RecipesService.getById(
         req.app.get('db'),
-        req.params.recipe_id
+        res.recipe.id
       );
       return res
         .location(req.originalUrl)
@@ -207,7 +238,7 @@ recipesRouter
     try {
       await RecipesService.deleteRecipe(
         req.app.get('db'),
-        req.params.recipe_id
+        res.recipe.id
       );
       return res
         .status(204)
@@ -237,7 +268,7 @@ async function checkRecipeExists(req, res, next) {
 // called after checkRecipeExists and requireAuth
 async function checkUserIsAuthor(req, res, next) {
   try {
-    if (!req.user.id === res.recipe.user_id) {
+    if (req.user.id !== res.recipe.author.id) {
       logger.error('User is not author of recipe');
       return res.status(404).json({
         error: 'User is not author of recipe'

@@ -3,11 +3,36 @@ const path = require('path');
 const { requireAuth } = require('../middleware/jwt-auth');
 const UsersService = require('./users-service');
 const AuthService = require('../auth/auth-service');
+const xss = require('xss');
 const logger = require('../logger');
 
 const usersRouter = express.Router();
 const jsonBodyParser = express.json();
 
+usersRouter
+  .get('/:user_id', async (req, res, next) => {
+    const user_id = req.params.user_id;
+    if (user_id == null) {
+      return res.status(400).json({
+        error: 'Missing \'user_id\' in request body'
+      });
+    }
+
+    try {
+      const full_name = await UsersService.getUserFullName(
+        req.app.get('db'),
+        user_id
+      );
+
+      if (!full_name) {
+        return res.status(400).json({
+          error: 'Could not find user with that id'
+        });
+      }
+
+      return res.json({ full_name: xss(full_name) });
+    } catch (error) { next(error); }
+  });
 usersRouter
   .post('/', jsonBodyParser, async (req, res, next) => {
     const { password, email, full_name, nickname } = req.body;
@@ -110,7 +135,7 @@ usersRouter
         });
     } catch (error) { next(error); }
   })
-  .delete((req, res, next) => {
+  .delete(async (req, res, next) => {
     if (req.user.id === 1) {
       logger.error('Cannot delete demo account');
       return res.status(401).json({

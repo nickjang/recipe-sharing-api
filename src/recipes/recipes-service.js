@@ -1,37 +1,25 @@
 const xss = require('xss');
 
 const RecipesService = {
-  getRecipes(limit = 12, user_id = null) {
+  getRecipes(db, limit, offset, user_id = null) {
     return db
       .from('recipes')
       .select(
         'recipes.id',
         'recipes.recipe_name',
         'recipes.information',
-        'recipes.date_created',
-        'recipes.date_modified',
+        'recipe_ingredients.ingredients',
+        'recipe_instructions.instructions',
+        'recipes.img',
+        'recipes.date_created AS date_created',
+        'recipes.date_modified AS date_modified',
         db.raw(
-          `json_agg(
-            json_object_agg(
-              recipe_ingredients.measurement, 
-              recipe_ingredients.ingredient
-            )
-            ORDER BY recipe_ingredients.list_idx
-          ) ingredients,
-          json_agg(
-            recipe_instructions.instruction
-            ORDER BY recipe_instructions.list_idx
-          ) instructions,
-          json_strip_nulls(
-            json_build_object(
-              'id', users.id,
-              'email', users.email,
-              'full_name', users.full_name,
-              'nickname', users.nickname,
-              'date_created', users.date_created,
-              'date_modified', users.date_modified
-            )
-          ) AS author`
+          `json_strip_nulls(
+          json_build_object(
+            'id', users.id,
+            'full_name', users.full_name
+          )
+        ) AS author`
         )
       )
       .leftJoin(
@@ -39,17 +27,38 @@ const RecipesService = {
         'recipes.user_id',
         'users.id'
       )
-      .innerJoin(
-        'recipe_ingredients',
-        'recipes.id',
-        'recipe_ingredients.recipe_id'
+      .joinRaw(
+        `LEFT JOIN (
+        SELECT 
+          recipe_id,
+          json_agg(
+            json_build_object(
+              'measurement', measurement,
+              'ingredient', ingredient
+            )
+            ORDER BY list_idx
+          ) AS ingredients
+        FROM recipe_ingredients
+        GROUP BY recipe_id
+       ) AS recipe_ingredients ON recipe_ingredients.recipe_id = recipes.id
+       LEFT JOIN (
+        SELECT 
+          recipe_id,
+          json_agg(
+            instruction
+            ORDER BY list_idx
+          ) AS instructions
+        FROM recipe_instructions
+        GROUP BY recipe_id
+       ) AS recipe_instructions ON recipe_instructions.recipe_id = recipes.id`
       )
-      .innerJoin(
-        'recipe_instructions',
-        'recipes.id',
-        'recipe_instructions.recipe_id'
-      )
-      .orderByRaw('GREATEST(recipes.date_created, recipes.date_modified)');
+      .where((builder) => {
+        if (user_id)
+          builder.where('recipes.user_id', user_id);
+      })
+      .orderByRaw('GREATEST(recipes.date_created, recipes.date_modified)')
+      .limit(limit)
+      .offset(offset);
   },
   getById(db, id) {
     return db
@@ -58,34 +67,16 @@ const RecipesService = {
         'recipes.id',
         'recipes.recipe_name',
         'recipes.information',
-        'recipes.date_created',
-        'recipes.date_modified',
+        'recipe_ingredients.ingredients',
+        'recipe_instructions.instructions',
+        'recipes.img',
+        'recipes.date_created AS date_created',
+        'recipes.date_modified AS date_modified',
         db.raw(
           `json_strip_nulls(
-            json_agg(
-              json_object_agg(
-                recipe_ingredients.measurement, 
-                recipe_ingredients.ingredient
-              )
-              WHERE recipe_ingredients.ingredient IS NOT NULL
-              ORDER BY recipe_ingredients.list_idx
-            ) ingredients
-          ),
-          json_strip_nulls(
-            json_agg(
-              recipe_instructions.instruction
-              WHERE recipe_instructions.instruction IS NOT NULL
-              ORDER BY recipe_instructions.list_idx
-            ) instructions
-          ),
-          json_strip_nulls(
             json_build_object(
               'id', users.id,
-              'email', users.email,
-              'full_name', users.full_name,
-              'nickname', users.nickname,
-              'date_created', users.date_created,
-              'date_modified', users.date_modified
+              'full_name', users.full_name
             )
           ) AS author`
         )
@@ -95,76 +86,44 @@ const RecipesService = {
         'recipes.user_id',
         'users.id'
       )
-      .leftJoin(
-        'recipe_ingredients',
-        'recipes.id',
-        'recipe_ingredients.recipe_id'
-      )
-      .leftJoin(
-        'recipe_instructions',
-        'recipes.id',
-        'recipe_instructions.recipe_id'
+      .joinRaw(
+        `LEFT JOIN (
+          SELECT 
+            recipe_id,
+            json_agg(
+              json_build_object(
+                'measurement', measurement,
+                'ingredient', ingredient
+              )
+              ORDER BY list_idx
+            ) AS ingredients
+          FROM recipe_ingredients
+          WHERE recipe_id = ${id}
+          GROUP BY recipe_id
+         ) AS recipe_ingredients ON recipe_ingredients.recipe_id = recipes.id
+         LEFT JOIN (
+          SELECT 
+            recipe_id,
+            json_agg(
+              instruction
+              ORDER BY list_idx
+            ) AS instructions
+          FROM recipe_instructions
+          WHERE recipe_id = ${id}
+          GROUP BY recipe_id
+         ) AS recipe_instructions ON recipe_instructions.recipe_id = recipes.id`
       )
       .where('recipes.id', id)
       .first();
   },
-  getLogsForProject(db, user_id, project_id) {
+  getNumRecipes(db, user_id = null) {
     return db
-      .from('logs')
-      .select(
-        'logs.id',
-        'logs.start_time',
-        'logs.end_time',
-        'logs.project_id',
-        'logs.format_min',
-        'logs.format_sec',
-        db.raw(
-          `json_strip_nulls(
-            json_build_object(
-              'id', users.id,
-              'email', users.email,
-              'full_name', users.full_name,
-              'nickname', users.nickname,
-              'date_created', users.date_created,
-              'date_modified', users.date_modified
-            )
-          ) AS "user"`
-        )
-      )
-      .leftJoin(
-        'users',
-        'logs.user_id',
-        'users.id'
-      )
-      .where('logs.project_id', project_id)
-      .andWhere('logs.user_id', user_id);
-  },
-  getDaysWithLogs(db, user_id, project_id, time_zone) {
-    return db
-      .from('logs')
-      .select(
-        db.raw(`
-          DISTINCT (logs.start_time 
-                    AT TIME ZONE ?)::date 
-          AS start_day`, time_zone
-        ),
-        // get the most recent end day, including current day if log is still running
-        db.raw(`
-          MAX(
-               ((CASE WHEN logs.end_time IS NULL THEN (now() AT TIME ZONE 'UTC')
-                      ELSE logs.end_time
-                 END) 
-                 AT TIME ZONE ? 
-                 + INTERVAL '1 day'
-               )::date
-             )
-             AS end_day`, time_zone
-        )
-      )
-      .where('logs.project_id', project_id)
-      .andWhere('logs.user_id', user_id)
-      .groupBy('start_day')
-      .orderBy('start_day');
+      .from('recipes')
+      .count(db.raw('DISTINCT id'))
+      .where((builder) => {
+        if (user_id) builder.where({ user_id });
+      })
+      .then(([{count}]) => count);
   },
   insertRecipe(db, newRecipe) {
     return db
@@ -189,21 +148,27 @@ const RecipesService = {
     return db
       .update(updates)
       .from('recipes')
-      .where({ id });
+      .where({ id })
+      .returning('*')
+      .then(([recipe]) => recipe);
   },
   putIngredients(db, recipe_id, updatedIngredients) {
     return db
+      .del()
       .from('recipe_ingredients')
       .where({ recipe_id })
-      .del()
-      .then(() => this.insertIngredients(updatedIngredients));
+      .then(() =>
+        RecipesService.insertIngredients(db, updatedIngredients)
+      );
   },
   putInstructions(db, recipe_id, updatedInstructions) {
     return db
+      .del()
       .from('recipe_instructions')
       .where({ recipe_id })
-      .del()
-      .then(() => this.insertInstructions(updatedInstructions));
+      .then(() =>
+        RecipesService.insertInstructions(db, updatedInstructions)
+      );
   },
   deleteRecipe(db, id) {
     return db
@@ -217,6 +182,7 @@ const RecipesService = {
       id: recipe.id,
       name: xss(recipe.recipe_name),
       information: xss(recipe.information),
+      img: xss(recipe.img),
       ingredients: recipe.ingredients.map(ingredient => ({
         measurement: xss(ingredient.measurement),
         ingredient: xss(ingredient.ingredient)

@@ -16,6 +16,12 @@ const UsersService = {
       .first()
       .then(user => !!user);
   },
+  getUserFullName(db, id) {
+    return db('users')
+      .where({ id })
+      .first()
+      .then(user => user.full_name);
+  },
   insertUser(db, newUser) {
     return db
       .insert(newUser)
