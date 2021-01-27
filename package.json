@@ -2,7 +2,7 @@
   "name": "recipe-sharing-api",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
     "test": "mocha --require test/setup.js",
     "dev": "nodemon src/server.js",
@@ -29,7 +29,7 @@
     "jsonwebtoken": "^8.5.0",
     "knex": "^0.16.3",
     "morgan": "^1.9.1",
-    "pg": "^7.8.0",
+    "pg": "^8.5.1",
     "postgrator-cli": "^3.2.0",
     "winston": "^3.3.3",
     "xss": "^1.0.3"
