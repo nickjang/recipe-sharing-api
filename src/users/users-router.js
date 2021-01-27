@@ -14,7 +14,7 @@ usersRouter
     const user_id = req.params.user_id;
     if (user_id == null) {
       return res.status(400).json({
-        error: 'Missing \'user_id\' in request body'
+        error: 'Missing \'user_id\' in parameters'
       });
     }
 
