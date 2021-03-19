@@ -65,6 +65,86 @@ describe('Recipes Endpoints', function () {
           .get(`/api/recipes?limit=12&offset=0&userId=${testUsers[1].id}`)
           .expect(200, { recipes: expectedRecipes, hasMore: false });
       });
+
+      it.only('responds with 200 and up to 12 recipes matching some filters', () => {
+        const information = 'recipe';
+        const ingredients = ['sugar', 'salt'];
+        const expectedRecipes = testRecipes
+          .filter(recipe => {
+            return recipe.information.toLowerCase().includes(information.toLowerCase());
+          })
+          .map(recipe =>
+            helpers.makeExpectedRecipe(
+              testUsers,
+              testIngredients,
+              testInstructions,
+              recipe
+            )
+          )
+          .filter(recipe => {
+            recipe.ingredients = recipe.ingredients.map(({ ingredient }) => ingredient);
+            return ingredients.reduce((bool, ingredient) =>
+              bool && recipe.ingredients.includes(ingredient), true
+            );
+          });
+
+        const limitString = 'limit=12';
+        const offsetString = 'offset=0';
+        const infoString = `information=${information}`;
+        const ingredientString = 'ingredients=' + ingredients.join('&ingredients=');
+
+        const queryString = [limitString, offsetString, infoString, ingredientString].join('&');
+
+        return supertest(app)
+          .get(`/api/recipes?${queryString}`)
+          .expect(200, { recipes: expectedRecipes, hasMore: false });
+      });
+
+      it.only('responds with 200 and up to 12 recipes matching all filters', () => {
+        const name = 'chocolate';
+        const information = 'recipe';
+        const ingredients = ['sugar', 'salt'];
+        const instructions = ['bake', 'cool'];
+        const expectedRecipes = testRecipes
+          .filter(recipe => {
+            return recipe.recipe_name.toLowerCase().includes(name.toLowerCase())
+              && recipe.information.toLowerCase().includes(information.toLowerCase())
+              && recipe.user_id === testUsers[1].id;
+          })
+          .map(recipe =>
+            helpers.makeExpectedRecipe(
+              testUsers,
+              testIngredients,
+              testInstructions,
+              recipe
+            )
+          )
+          .filter(recipe => {
+            recipe.ingredients = recipe.ingredients.map(({ ingredient }) => ingredient);
+            return ingredients.reduce((bool, ingredient) =>
+              bool && recipe.ingredients.includes(ingredient), true
+            ) && instructions.reduce((bool, instruction) =>
+              bool && recipe.instructions.includes(instruction), true
+            );
+          });
+
+        const limitString = 'limit=12';
+        const offsetString = 'offset=0';
+        const nameString = `name=${name}`;
+        const infoString = `information=${information}`;
+        const ingredientString = 'ingredients=' + ingredients.join('&ingredients=');
+        const instructionString = 'instructions=' + instructions.join('&instructions=');
+        const userIdString = `userId=${testUsers[1].id}`;
+
+        const queryString = [
+          limitString, offsetString, nameString, infoString,
+          ingredientString, instructionString, userIdString
+        ].join('&');
+
+        return supertest(app)
+          .get(`/api/recipes?${queryString}`)
+          .expect(200, { recipes: expectedRecipes, hasMore: false });
+      });
     });
 
     context('Given an XSS attack recipe', () => {

@@ -309,7 +309,12 @@ function seedRecipesTables(db, users, recipes, ingredients = [], instructions = 
   // use a transaction to group the queries and auto rollback on any failure
   return db.transaction(async trx => {
     await seedUsers(trx, users)
-    await trx.into('recipes').insert(recipes)
+    // add information tokens
+    const newRecipes = recipes.map(recipe => { 
+      recipe.information_tokens = `to_tsvector(${recipe.information})`;
+      return recipe;
+    })
+    await trx.into('recipes').insert(newRecipes)
     // update the auto sequence to match the forced id values
     await trx.raw(
       `SELECT setval('recipes_id_seq', ?)`,

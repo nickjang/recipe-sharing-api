@@ -1,7 +1,7 @@
 const xss = require('xss');
 
 const RecipesService = {
-  getRecipes(db, limit, offset, user_id = null) {
+  getRecipes(db) {
     return db
       .from('recipes')
       .select(
@@ -51,14 +51,7 @@ const RecipesService = {
         FROM recipe_instructions
         GROUP BY recipe_id
        ) AS recipe_instructions ON recipe_instructions.recipe_id = recipes.id`
-      )
-      .where((builder) => {
-        if (user_id)
-          builder.where('recipes.user_id', user_id);
-      })
-      .orderByRaw('GREATEST(recipes.date_created, recipes.date_modified)')
-      .limit(limit)
-      .offset(offset);
+      );
   },
   getById(db, id) {
     return db
@@ -116,14 +109,82 @@ const RecipesService = {
       .where('recipes.id', id)
       .first();
   },
-  getNumRecipes(db, user_id = null) {
+  getByIngredients(db, ingredients) {
     return db
-      .from('recipes')
-      .count(db.raw('DISTINCT id'))
+      .from('recipe_ingredients')
+      .select('recipe_id')
       .where((builder) => {
-        if (user_id) builder.where({ user_id });
-      })
-      .then(([{count}]) => count);
+        ingredients.forEach((ingredient) => {
+          if (ingredient) {
+            builder.orWhere('ingredient', 'ILIKE', `%${ingredient}%`);
+          }
+        });
+      });
+  },
+  getByInstructions(db, instructions) {
+    return db
+      .from('recipe_instructions')
+      .select('recipe_id')
+      .where((builder) => {
+        instructions.forEach((instruction) => {
+          if (instruction) {
+            builder.orWhere('instruction', 'ILIKE', `%${instruction}%`);
+          }
+        });
+      });
+  },
+  getWithFilters(db, filters, limit = -1, offset = -1, fullRecipe = true) {
+    let { name, information, ingredients, instructions, user_id } = filters;
+    let query;
+    if (fullRecipe) query = this.getRecipes(db);
+    else query = db.from('recipes');
+
+    // apply ingredients and instructions filters
+    let listQuery;
+    if (ingredients && ingredients.length && instructions && instructions.length) {
+      listQuery = this.getByIngredients(db, ingredients)
+        .unionAll([this.getByInstructions(db, instructions)]);
+    } else if (ingredients && ingredients.length) {
+      listQuery = this.getByIngredients(db, ingredients);
+    } else if (instructions && instructions.length) {
+      listQuery = this.getByInstructions(db, instructions);
+    }
+    if (listQuery) {
+      query.join(
+        listQuery
+          .select('recipe_id')
+          .count('recipe_id', { as: 'matches' })
+          .groupBy('recipe_id')
+          .as('byList'),
+        'recipes.id',
+        'byList.recipe_id'
+      );
+    }
+
+    // apply name, information, user_id filters
+    query.where((builder) => {
+      if (name) builder.where('recipes.recipe_name', 'ILIKE', `%${name}%`);
+      if (information) {
+        information = information.trim().replace(/[ ,]+/, ' & ');
+        builder.whereRaw(`information_tokens @@ to_tsquery('${information}')`);
+      }
+      if (user_id) builder.where('recipes.user_id', user_id);
+    });
+
+    let columnsToOrderBy = [];
+    // most matched ingredients and instructions
+    if (information && information.length || ingredients && ingredients.length)
+      columnsToOrderBy.push('byList.matches DESC');
+    columnsToOrderBy.push('GREATEST(recipes.date_created, recipes.date_modified) DESC');
+    query.orderByRaw(columnsToOrderBy.join(', '));
+    if (limit >= 0) query.limit(limit);
+    if (offset >= 0) query.offset(offset);
+    return query;
+  },
+  getNumRecipes(db, filters) {
+    return this.getWithFilters(db, filters, -1, -1, false)
+      .count('recipes.id AS num_recipes')
+      .then(([{ num_recipes }]) => num_recipes);
   },
   insertRecipe(db, newRecipe) {
     return db

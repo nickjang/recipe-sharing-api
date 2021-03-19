@@ -11,7 +11,14 @@ const jsonBodyParser = express.json();
 recipesRouter
   .route('/')
   .get(async (req, res, next) => {
-    const { limit, offset, userId } = req.query;
+    const {
+      limit,
+      offset,
+      name,
+      information,
+      ingredients,
+      instructions,
+      userId } = req.query;
 
     for (const key of ['limit', 'offset']) {
       if (!req.query[key]) {
@@ -39,16 +46,23 @@ recipesRouter
     }
 
     try {
+      const filters = {
+        name,
+        information,
+        ingredients,
+        instructions,
+        userId
+      };
       const [recipes, count] = await Promise.all([
-        RecipesService.getRecipes(
+        RecipesService.getWithFilters(
           req.app.get('db'),
+          filters,
           limit,
-          offset,
-          userId
+          offset
         ),
         RecipesService.getNumRecipes(
           req.app.get('db'),
-          userId
+          filters
         )]);
       return res.json({
         recipes: recipes.map(RecipesService.serializeRecipe),
@@ -87,6 +101,7 @@ recipesRouter
     }
 
     newRecipe.user_id = req.user.id;
+    newRecipe.information_tokens = `to_tsvector(${newRecipe.information})`;
 
     try {
       const { id: recipe_id } = await RecipesService.insertRecipe(
@@ -163,6 +178,10 @@ recipesRouter
         updated = true;
       }
     }
+
+    // if given information, add information tokens
+    if (recipeUpdates.hasOwnProperty('information'))
+      recipeUpdates.information_tokens = `to_tsvector(${recipeUpdates.information})`;
 
     // if given, check if ingredients and instructions have at least 
     // one element and add to updates to run if valid
